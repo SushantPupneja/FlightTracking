@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html ng-app="ngMap">
+<head>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+  <style type="text/css">
+  .sort-icon {
+    font-size: 9px;
+    margin-left: 5px;
+}
+.scrollable-menu {
+    height: auto;
+    max-height: 200px;
+    overflow-x: hidden;
+}
+
+th {
+    cursor:pointer;
+}
+td, th {
+    border: 1px #ccc solid;
+}
+  </style>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<script src="https://maps.google.com/maps/api/js?libraries=placeses,visualization,drawing,geometry,places"></script>
+
+<!-- Angular Material Dependencies -->
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular-animate.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.3/angular-aria.min.js"></script>
+
+
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+<script src="https://code.angularjs.org/1.3.15/angular.js"></script>
+<script src="https://rawgit.com/allenhwkim/angularjs-google-maps/master/build/scripts/ng-map.js"></script>
+<script src="dirPagination.js"></script>
+
+<script>
+
+
+angular.module('ngMap').controller('MyCtrl', function($scope, $http) {
+  var vm = this;
+  $scope.markers = [];
+  // create an aircraft list 
+  $scope.aircraft_list = []
+  $http.get("flight_info.txt").success(function (response) { 
+    var flights_data = response
+    console.log(typeof(flights_data))
+    vm.allShapes = [
+    //f {name: "polyline", path: $scope.path_list}
+  ];
+    // count = 0
+    for (var key in response) {
+      // append aircraft name in aircraft list (hex code for the aircraft)
+      // console.log(key)
+      $scope.aircraft_list.push(key)
+    }; 
+
+    $scope.clear_flight_info = function(){
+      $scope.markers = [];
+      $scope.path_list = [];
+      vm.allShapes = [];
+    };
+
+    $scope.show_flight_info = function(flight_num){
+      console.log("flight_num")
+      $scope.clear_flight_info()
+      console.log(flight_num)
+      flight_track_list = response[flight_num]
+      console.log(flight_track_list.length)
+      
+      for (var i = 0; i < flight_track_list.length; i++) {
+        // ignore the empty lat long for flight as will create noise when joining co-ordinates
+        if (flight_track_list[i]["lat"] == "" & flight_track_list[i]["lon"] == ""){
+          continue;
+        };
+        // create a position 
+        pos = {}
+        pos["id"] = "1"
+        pos["pos"] = [flight_track_list[i]["lat"], flight_track_list[i]["lon"]]
+        $scope.path_list.push([flight_track_list[i]["lat"], flight_track_list[i]["lon"]])
+        // console.log(flight_track_list[i]["hex"])
+        pos["flight_name"] =  "F: "+flight_track_list[i]["hex"];
+        pos["icon"] = "dot.png"
+        // console.log(typeof(pos["flight_name"]))
+        $scope.markers.push(pos)
+      };
+      if ($scope.path_list.length > 0){
+         // $scope.aircraft_list.push(key);
+         vm.allShapes.push({name:"polyline", path: $scope.path_list});
+    };
+
+    if ($scope.path_list.length == 0){
+         // $scope.aircraft_list.push(key);
+         alert("no data available for flight num: " + flight_num)
+       };
+    };
+
+  });
+  
+// [[40.74,-74.18],[40.64,-74.10],[40.54,-74.05],[40.44,-74]]
+  console.log($scope.path_list)
+    $scope.showPath = function(){
+        var count = 0.0;
+        var line = $scope.map.shapes.foo;
+        latlong = 0;
+        // console.log();
+        $scope.updateIcon = function(){
+            count = (count + 1) % 200;
+            
+            var icons = line.get('icons');
+            latlong = latlong+parseInt($scope.trip_path.length/200);
+            console.log(latlong);
+            $scope.centerHome = $scope.trip_path[latlong][0]+","+$scope.trip_path[latlong][1];
+            console.log($scope.centerHome);
+            icons[0].offset = (count / 2) + '%';
+            line.set('icons', icons);
+            if (count==199) {
+                utility.loginfo("trip compiletd");
+                $interval.cancel($rootScope.updateIconInterval);
+            };
+        };
+        $rootScope.updateIconInterval = $interval(updateIcon, 150);
+        $interval.cancel($rootScope.refresh);    
+    };
+  
+});
+</script>
+</head>
+
+<!-- for icons place below code in the marker tag -->
+
+<body ng-controller="MyCtrl as vm">
+  <div class="container">
+    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">Aircraft Menu <span class="caret"></span></button>
+                 <ul class="dropdown-menu scrollable-menu" role="menu">
+  <!--   <ul class="list-group"> -->
+                <li ng-repeat="aircraft in aircraft_list"> <a ng-click="show_flight_info(aircraft)" href="#">{{aircraft}}</a></li>
+            </ul>
+
+ <!--  <table class="table">
+    <tr>
+    <th>Aircrafts</th>
+  </tr>
+  <ul dropdown-menu scrollable-menu role="menu">
+  <tr class="active" ng-repeat="row in aircraft_list">
+    <td>
+      
+        <li> <a ng-click="show_flight_info(row)" href="">{{ row }}</a> </li>
+     
+    </td>
+  </tr>
+   </ul>
+  </table> -->
+<!-- <dir-pagination-controls
+       max-size="5"
+       direction-links="true"
+       boundary-links="flase" >
+    </dir-pagination-controls> -->
+
+  <ng-map zoom="7" center="[27.327621, 77.587315]"  style="height:500px;width:1000px"> 
+ 
+        <marker ng-repeat="p in markers" position="{{p.pos}}" title="{{p.flight_name}}" icon="{path:'CIRCLE', fillOpacity: 0.5,fillColor: 'red',strokeOpacity: 0.1,strokeColor: 'red',strokeWeight: 1.0, scale: 1}"></marker>
+     <shape ng-repeat="shape in vm.allShapes"
+       name="{{shape.name}}"
+       stroke-color="#FF0000"
+       stroke-opacity="0.8"
+       path="{{shape.path}}"
+       paths="{{shape.paths}}"
+       bounds="{{shape.bounds}}"
+       center="{{shape.center}}"
+       radius="{{shape.radius}}"
+       icons="[{
+                icon: {
+                   path: 'CIRCLE',
+                   scale: 8,
+                   strokeColor: '#393'
+                 },
+                 offset: '100%'
+               }]" path="{{shape.path}}"
+       stroke-weight="2">
+     </shape>
+     <shape name="polyline" id="foo" >
+            </shape>
+
+
+
+  </ng-map>
+
+</div>
+
+</body>
+</html>

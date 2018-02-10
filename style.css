@@ -1,0 +1,9 @@
+.location-finder .angular-google-map,
+.location-finder .angular-google-map-container {
+	height: 45em;
+	width: 55em;
+}
+
+.selected {
+  background: #ddd;
+}
